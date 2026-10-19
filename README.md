@@ -4,16 +4,7 @@ Real DOOM in the band above the Claude Code prompt. Type `/doom` while Claude pl
 and the doomgeneric engine starts in a child process; its frames are drawn above the prompt with
 kitty graphics, and the band's hotkeys drive the game.
 
-```
-╭──────────────────────────────────────────────────────────────────────────╮
-│                 👹 DOOM · ctrl+x tab gives DOOM the keys, Esc gives them back │
-│                    ┌──────────────────────────────┐                      │
-│                    │     (the game, as pixels)    │                      │
-│                    └──────────────────────────────┘                      │
-│                 w: ↑  s: ↓  a: ←  d: →  z: ⇐  c: ⇒                        │
-│      f: 🔫  e: ✋  m: ☰  t: 🧭  y: ✅  n: ❌  [ ⏎ Enter ]  [ Hide ] [ Quit ]   │
-╰──────────────────────────────────────────────────────────────────────────╯
-```
+![DOOM running in the band above the Claude Code prompt](docs/screenshot.png)
 
 ## Requirements
 
