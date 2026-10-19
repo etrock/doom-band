@@ -1,0 +1,13 @@
+{
+  "name": "etrock-doom",
+  "description": "Claude Code mods by Sipos Dávid Dániel: doom-band, real DOOM in the band above the prompt.",
+  "owner": {
+    "name": "Sipos Dávid Dániel"
+  },
+  "plugins": [
+    {
+      "name": "doom-band",
+      "source": "./"
+    }
+  ]
+}

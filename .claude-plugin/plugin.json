@@ -1,0 +1,36 @@
+{
+  "name": "doom-band",
+  "version": "0.1.0",
+  "description": "Real DOOM in the band above the prompt: /doom starts the doomgeneric engine (WebAssembly, Freedoom) and draws its frames with kitty graphics while Claude plans or codes.",
+  "author": {
+    "name": "Sipos Dávid Dániel"
+  },
+  "homepage": "https://github.com/etrock/doom-band",
+  "repository": "https://github.com/etrock/doom-band",
+  "license": "MIT",
+  "keywords": [
+    "doom",
+    "game",
+    "band",
+    "above-prompt"
+  ],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "wad": {
+      "type": "string",
+      "title": "IWAD path",
+      "description": "Absolute path of your own DOOM IWAD (doom1.wad, DOOM.WAD, DOOM2.WAD). Leave empty to download Freedoom phase 1 on first start.",
+      "default": ""
+    },
+    "fps": {
+      "type": "string",
+      "title": "Frames per second",
+      "description": "How many frames per second reach the terminal. The engine always runs at 35 Hz.",
+      "default": "17",
+      "options": [
+        "17",
+        "35"
+      ]
+    }
+  }
+}
