@@ -80,6 +80,21 @@ async function ensureWad() {
   return dest
 }
 
+// The engine reads its clock through emscripten_get_now(), which is
+// performance.now(). After the machine sleeps, a real clock jumps by hours
+// and the engine spins to catch up on the missed tics, blocking the event
+// loop: the picture freezes and the quit flag is never read. This clock
+// follows real time but never jumps more than 50 ms between two reads.
+const realNow = performance.now.bind(performance)
+let lastReal = realNow()
+let softNow = 0
+performance.now = () => {
+  const now = realNow()
+  softNow += Math.min(Math.max(now - lastReal, 0), 50)
+  lastReal = now
+  return softNow
+}
+
 async function loadEngine(wadPath) {
   const require = createRequire(import.meta.url)
   const createDoomModule = require(path.join(cacheDir, 'doom.js'))
