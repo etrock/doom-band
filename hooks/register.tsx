@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register } from 'claude-code'
+import type { EngineInterface, Register, RenderChildren } from 'claude-code'
 
 const isOn = atom({ plugin: 'doom-band', key: 'isOn' } as const, false)
 const isHidden = atom({ plugin: 'doom-band', key: 'isHidden' } as const, false)
@@ -85,6 +85,14 @@ const ACTION_KEYS: Hotkey[] = [
 ]
 /** A plain hotkey button draws as `w: label`: three cells and the label. */
 const hotkeyWidth = (keys: Hotkey[]) => keys.reduce((sum, k) => sum + 3 + k.cols, 0) + (keys.length - 1)
+const ENTER_WIDTH = '[ ⏎ Enter ]'.length
+const HIDE_WIDTH = '[ Hide ]'.length
+const QUIT_WIDTH = '[ Quit ]'.length
+/** The side columns beside the picture: movement keys left, everything else right. */
+const LEFT_WIDTH = Math.max(...MOVE_KEYS.map(k => 3 + k.cols))
+const RIGHT_WIDTH = Math.max(...ACTION_KEYS.map(k => 3 + k.cols), ENTER_WIDTH, HIDE_WIDTH, QUIT_WIDTH)
+/** Action keys, a blank, Enter, Hide, Quit. */
+const RIGHT_ROWS = ACTION_KEYS.length + 4
 
 async function writeKeys($: EngineInterface, extra: { quit?: true } = {}): Promise<void> {
   if (!ctx.keysPath) return
@@ -249,56 +257,86 @@ export const register: Register = (on, options) => {
     }
 
     const { Box, Text, Button, Image } = $.ui.resolve(e)
-    // header + picture + two control rows + the border = picture rows + 5
-    const rows = Math.max(4, Math.min(e.props.maxRows - 5, 40))
-    const inner = Math.max(20, e.props.bodyColumns - 4)
-    const columns = Math.max(16, Math.min(inner, Math.round(rows * 3.2)))
     const button = (entry: Hotkey) => (
       <Button key={`k-${entry.hotkey}`} hotkey={entry.hotkey} plain label={entry.label} onPress={() => sendKeys($, entry.codes)} />
     )
-    const spaced = (keys: Hotkey[], prefix: string) =>
-      keys.flatMap((entry, index) => (index === 0 ? [button(entry)] : [<Text key={`${prefix}${index}`}> </Text>, button(entry)]))
+    const enter = <Button key="enter" autoFocus label="⏎ Enter" onPress={() => sendKeys($, [KEY_ENTER])} />
+    const hide = <Button key="hide" hotkey="x" label="Hide" dimColor onPress={onHide} />
+    const quit = <Button key="quit" label="Quit" dimColor onPress={onQuit} />
+    const inner = Math.max(20, e.props.bodyColumns - 4)
     // The flex centring cuts hotkey labels short, so the rows are centred by hand.
     const pad = (width: number) => ' '.repeat(Math.max(0, Math.floor((inner - width) / 2)))
-    const moveWidth = hotkeyWidth(MOVE_KEYS)
-    const actionWidth = hotkeyWidth(ACTION_KEYS) + 2 + '[ ⏎ Enter ]'.length + 2 + '[ Hide ]'.length + 1 + '[ Quit ]'.length
     const headerWidth = '👹 DOOM · ctrl+x tab gives DOOM the keys, Esc gives them back'.length + 1
+    const header = (
+      <Box>
+        <Text>{pad(headerWidth)}</Text>
+        <Text color="warning" bold>
+          👹 DOOM
+        </Text>
+        {(!hasFrame || !ctx.running) && <Text dimColor> · {text}</Text>}
+        <Text dimColor> · ctrl+x tab gives DOOM the keys, Esc gives them back</Text>
+      </Box>
+    )
+
+    if (!hasFrame || !ctx.framePath) {
+      // No picture yet: every button on one row under the header.
+      const spaced = (keys: Hotkey[], prefix: string) =>
+        keys.flatMap((entry, index) => (index === 0 ? [button(entry)] : [<Text key={`${prefix}${index}`}> </Text>, button(entry)]))
+      const rowWidth = hotkeyWidth(MOVE_KEYS) + 2 + hotkeyWidth(ACTION_KEYS) + 2 + ENTER_WIDTH + 2 + HIDE_WIDTH + 1 + QUIT_WIDTH
+      return (
+        <Box flexDirection="column" borderStyle="round" borderColor="warning" borderDimColor paddingX={1}>
+          {header}
+          <Box>
+            <Text>{pad(rowWidth)}</Text>
+            {spaced(MOVE_KEYS, 'sp')}
+            <Text>  </Text>
+            {spaced(ACTION_KEYS, 'sq')}
+            <Text>  </Text>
+            {enter}
+            <Text>  </Text>
+            {hide}
+            <Text> </Text>
+            {quit}
+          </Box>
+        </Box>
+      )
+    }
+
+    // Movement keys down the left side, the rest down the right, the picture between:
+    // header + picture + the border = picture rows + 3. The right column needs RIGHT_ROWS rows.
+    const rows = Math.max(RIGHT_ROWS, Math.min(e.props.maxRows - 3, 40))
+    const room = inner - LEFT_WIDTH - RIGHT_WIDTH - 2
+    const columns = Math.max(16, Math.min(room, Math.round(rows * 3.2)))
+    const column = (key: string, width: number, items: RenderChildren[]) => {
+      const top = Math.max(0, Math.floor((rows - items.length) / 2))
+      return (
+        <Box key={key} flexDirection="column" width={width}>
+          {Array.from({ length: top }, (_, i) => (
+            <Text key={`${key}-${i}`}> </Text>
+          ))}
+          {items}
+        </Box>
+      )
+    }
+    const left = column('left', LEFT_WIDTH, MOVE_KEYS.map(button))
+    const right = column('right', RIGHT_WIDTH, [...ACTION_KEYS.map(button), <Text key="gap"> </Text>, enter, hide, quit])
 
     return (
       <Box flexDirection="column" borderStyle="round" borderColor="warning" borderDimColor paddingX={1}>
+        {header}
         <Box>
-          <Text>{pad(headerWidth)}</Text>
-          <Text color="warning" bold>
-            👹 DOOM
-          </Text>
-          {(!hasFrame || !ctx.running) && <Text dimColor> · {text}</Text>}
-          <Text dimColor> · ctrl+x tab gives DOOM the keys, Esc gives them back</Text>
-        </Box>
-        {hasFrame && ctx.framePath && (
-          <Box>
-            <Text>{pad(columns)}</Text>
-            <Image
-              key="doom"
-              source={{ file: ctx.framePath, format: 'rgba', width: ctx.width, height: ctx.height, generation: ctx.frameNo }}
-              columns={columns}
-              rows={rows}
-              alt="DOOM is running, but this terminal cannot show pictures (kitty graphics: Ghostty, kitty)."
-            />
-          </Box>
-        )}
-        <Box>
-          <Text>{pad(moveWidth)}</Text>
-          {spaced(MOVE_KEYS, 'sp')}
-        </Box>
-        <Box>
-          <Text>{pad(actionWidth)}</Text>
-          {spaced(ACTION_KEYS, 'sq')}
-          <Text>  </Text>
-          <Button key="enter" autoFocus label="⏎ Enter" onPress={() => sendKeys($, [KEY_ENTER])} />
-          <Text>  </Text>
-          <Button key="hide" hotkey="x" label="Hide" dimColor onPress={onHide} />
+          <Text>{pad(LEFT_WIDTH + 1 + columns + 1 + RIGHT_WIDTH)}</Text>
+          {left}
           <Text> </Text>
-          <Button key="quit" label="Quit" dimColor onPress={onQuit} />
+          <Image
+            key="doom"
+            source={{ file: ctx.framePath, format: 'rgba', width: ctx.width, height: ctx.height, generation: ctx.frameNo }}
+            columns={columns}
+            rows={rows}
+            alt="DOOM is running, but this terminal cannot show pictures (kitty graphics: Ghostty, kitty)."
+          />
+          <Text> </Text>
+          {right}
         </Box>
       </Box>
     )
